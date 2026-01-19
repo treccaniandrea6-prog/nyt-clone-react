@@ -1,16 +1,44 @@
-# React + Vite
+# NYT Clone — Top Stories (React)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React app that fetches and displays **New York Times Top Stories** by section, with search, pagination and refresh.
+Project refined after mentor review to improve maintainability and performance.
 
-Currently, two official plugins are available:
+## Links
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- GitHub Repository: https://github.com/treccaniandrea6-prog/nyt-clone-react
+- Live Demo (Netlify): https://dashing-begonia-75e402.netlify.app
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Top Stories (Home) + sections (World / Business / Technology, etc.)
+- Search on title and abstract
+- “Load more” client-side pagination
+- Refresh per section
+- Open article directly on NYT website (external link)
+- Global fallback on runtime errors via **Error Boundary**
 
-## Expanding the ESLint configuration
+## Code Review Improvements (Mentor)
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Implemented the following improvements to make the project more scalable and production-ready:
+
+- **DRY**: merged duplicated logic from Home and Section into a single reusable page component (`NewsListPage`).
+- **Context optimization**: split context into **State** and **Actions** to reduce unnecessary re-renders across consumers.
+- **Performance**: memoized `ArticleCard` with `React.memo` to avoid re-rendering unchanged cards.
+- **Cache consistency**: single source of truth for caching in reducer state (no redundant refs).
+- **Routing simplification**: removed internal `Article` route that only redirected externally; articles open directly on NYT.
+
+## Tech Stack
+
+- React + Vite
+- React Router
+- Context API
+- Axios
+- NYT Top Stories API
+
+## Setup (Local)
+
+### 1) Install
+
+```bash
+npm install
+```
