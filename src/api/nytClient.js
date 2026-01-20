@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const nytClient = axios.create({
-  baseURL: "https://api.nytimes.com/svc",
+  baseURL: "/nyt",
   params: {
     "api-key": import.meta.env.VITE_NYT_API_KEY,
   },

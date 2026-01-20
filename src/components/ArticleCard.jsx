@@ -1,6 +1,6 @@
-import { Link } from "react-router-dom";
+import { memo } from "react";
 
-function ArticleCard({ article }) {
+const ArticleCard = memo(function ArticleCard({ article }) {
   const imageUrl =
     article.multimedia?.find((m) => m.format === "mediumThreeByTwo440")?.url ||
     article.multimedia?.[0]?.url ||
@@ -19,16 +19,17 @@ function ArticleCard({ article }) {
         <h3 className="card-title">{article.title}</h3>
         <p className="card-abstract">{article.abstract}</p>
 
-        {/* LINK INTERNO ALLA PAGINA ARTICLE */}
-        <Link
+        <a
           className="card-link"
-          to={`/article/${encodeURIComponent(article.url)}`}
+          href={article.url}
+          target="_blank"
+          rel="noopener noreferrer"
         >
           Open article
-        </Link>
+        </a>
       </div>
     </article>
   );
-}
+});
 
 export default ArticleCard;

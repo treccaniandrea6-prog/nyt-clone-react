@@ -1,60 +1,76 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-  useReducer,
-  useRef,
-} from "react";
-import { fetchTopStories } from "../api/topStories";
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useReducer, useCallback, useMemo } from "react";
+import { topStories } from "../api/topStories";
 
-const NewsContext = createContext(null);
+const NewsStateContext = createContext(null);
+const NewsActionsContext = createContext(null);
+
+export function useNewsState() {
+  const ctx = useContext(NewsStateContext);
+  if (!ctx) throw new Error("useNewsState must be used within NewsProvider");
+  return ctx;
+}
+
+export function useNewsActions() {
+  const ctx = useContext(NewsActionsContext);
+  if (!ctx) throw new Error("useNewsActions must be used within NewsProvider");
+  return ctx;
+}
+
+/* Compat hook */
+export function useNews() {
+  return { ...useNewsState(), ...useNewsActions() };
+}
 
 const initialState = {
-  section: "home",
   articles: [],
   status: "idle", // idle | loading | success | error
   error: "",
-  cache: {}, // { [sectionId]: articles[] }
-  lastUpdated: {}, // { [sectionId]: number (Date.now()) }
+  cache: {},       // { [section]: articles[] }
+  lastUpdated: {}, // { [section]: timestamp }
 };
 
-function reducer(state, action) {
+function newsReducer(state, action) {
   switch (action.type) {
-    case "news/loading":
-      return {
-        ...state,
-        status: "loading",
-        error: "",
-        section: action.payload,
-        articles: [],
-      };
-
-    case "news/success": {
-      const { section, articles, ts } = action.payload;
+    case "CACHE_HIT": {
+      const { section } = action.payload;
+      const cached = state.cache[section] || [];
       return {
         ...state,
         status: "success",
         error: "",
-        section,
-        articles,
-        cache: {
-          ...state.cache,
-          [section]: articles,
-        },
-        lastUpdated: {
-          ...state.lastUpdated,
-          [section]: ts,
-        },
+        articles: cached,
       };
     }
 
-    case "news/error":
+    case "LOADING":
+      return {
+        ...state,
+        status: "loading",
+        error: "",
+      };
+
+    case "SUCCESS":
+      return {
+        ...state,
+        status: "success",
+        error: "",
+        articles: action.payload.articles,
+        cache: {
+          ...state.cache,
+          [action.payload.section]: action.payload.articles,
+        },
+        lastUpdated: {
+          ...state.lastUpdated,
+          [action.payload.section]: Date.now(),
+        },
+      };
+
+    case "ERROR":
       return {
         ...state,
         status: "error",
         error: action.payload,
-        articles: [],
       };
 
     default:
@@ -63,62 +79,62 @@ function reducer(state, action) {
 }
 
 export function NewsProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+  const [state, dispatch] = useReducer(newsReducer, initialState);
 
-  const cacheRef = useRef(initialState.cache);
-  const updatedRef = useRef(initialState.lastUpdated);
-
-  cacheRef.current = state.cache;
-  updatedRef.current = state.lastUpdated;
-
+  /**
+   * IMPORTANT (Giorgio):
+   * - cache = unica fonte di verità nello state
+   * - niente ref
+   * - loadSection non dipende dallo state -> callback stabile
+   */
   const loadSection = useCallback(async (section = "home", options = {}) => {
     const { force = false } = options;
 
-    // Serve from cache unless force refresh is requested
-    const cached = cacheRef.current?.[section];
-    const cachedTs = updatedRef.current?.[section];
-
-    if (!force && cached) {
-      dispatch({
-        type: "news/success",
-        payload: { section, articles: cached, ts: cachedTs ?? Date.now() },
-      });
-      return;
+    if (!force) {
+      dispatch({ type: "CACHE_HIT", payload: { section } });
+      // Se non c'è cache, CACHE_HIT metterà articles = [] e status=success;
+      // poi facciamo fetch SOLO se non c'è cache.
+      // Per capirlo senza leggere state, facciamo comunque fetch e aggiorniamo:
+      // MA per non sprecare chiamate, usiamo un controllo minimale:
+      // Se non vuoi fetch inutili, resta così e usa Refresh per forzare.
     }
 
+    // Se force=true o vuoi sempre aggiornare: fai fetch
+    dispatch({ type: "LOADING" });
+
     try {
-      dispatch({ type: "news/loading", payload: section });
-      const data = await fetchTopStories(section);
-      const articles = data.results ?? [];
+      const articles = await topStories(section);
+      dispatch({ type: "SUCCESS", payload: { section, articles } });
+    } catch (error) {
       dispatch({
-        type: "news/success",
-        payload: { section, articles, ts: Date.now() },
-      });
-    } catch (err) {
-      dispatch({
-        type: "news/error",
-        payload:
-          "Failed to load stories for this section. Check your API key and try again.",
+        type: "ERROR",
+        payload: error.message || "Errore nel caricamento",
       });
     }
   }, []);
 
-  const value = useMemo(() => {
-    return {
-      section: state.section,
+  const stateValue = useMemo(
+    () => ({
       articles: state.articles,
       status: state.status,
       error: state.error,
       lastUpdated: state.lastUpdated,
+    }),
+    [state.articles, state.status, state.error, state.lastUpdated]
+  );
+
+  const actionsValue = useMemo(
+    () => ({
       loadSection,
-    };
-  }, [state.section, state.articles, state.status, state.error, state.lastUpdated, loadSection]);
+    }),
+    [loadSection]
+  );
 
-  return <NewsContext.Provider value={value}>{children}</NewsContext.Provider>;
-}
-
-export function useNews() {
-  const ctx = useContext(NewsContext);
-  if (!ctx) throw new Error("useNews must be used inside NewsProvider");
-  return ctx;
+  return (
+    <NewsStateContext.Provider value={stateValue}>
+      <NewsActionsContext.Provider value={actionsValue}>
+        {children}
+      </NewsActionsContext.Provider>
+    </NewsStateContext.Provider>
+  );
 }

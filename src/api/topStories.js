@@ -1,6 +1,9 @@
 import nytClient from "./nytClient";
 
-export async function fetchTopStories(section = "home") {
-  const response = await nytClient.get(`/topstories/v2/${section}.json`);
-  return response.data;
+export async function topStories(section = "home") {
+  const response = await nytClient.get(
+    `/svc/topstories/v2/${section}.json`
+  );
+
+  return response.data.results;
 }
